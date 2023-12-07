@@ -1,3 +1,5 @@
+#include "linear-approximation.h"
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,10 +14,9 @@ double average(double *set, int count) {
   return sum / count;
 }
 
-// Linear approximation
-double *calc_approximation_coefficient(double *x, double *y, int count) {
-  double *coefficients = malloc(2 * sizeof(double));
-  if (coefficients == NULL) {
+double *calc_linear_approximation_parameters(double *x, double *y, int count) {
+  double *parameters = malloc(2 * sizeof(double));
+  if (parameters == NULL) {
     return NULL;  // メモリ割り当て失敗
   }
 
@@ -30,33 +31,35 @@ double *calc_approximation_coefficient(double *x, double *y, int count) {
     sumXX += x[i] * x[i];
   }
 
-  coefficients[0] =
-      (count * sumXY - sumX * sumY) / (count * sumXX - sumX * sumX);
-  coefficients[1] =
-      (sumXX * sumY - sumX * sumXY) / (count * sumXX - sumX * sumX);
-  return coefficients;
+  parameters[1] = (count * sumXY - sumX * sumY) / (count * sumXX - sumX * sumX);
+  parameters[0] = (sumXX * sumY - sumX * sumXY) / (count * sumXX - sumX * sumX);
+  return parameters;
 }
 
-// R2
-double calc_determination_coefficient(double *x, double *y, int count, double a,
-                                      double b) {
+double calc_determination_coefficient(double *x, double *y, int point_count,
+                                      double *parameters) {
   // Σ (y_i - y_bar)^2
   double varianceSumToAverageY = 0.0;
-  double avgY = average(y, count);
-  for (int i = 0; i < count; i++) {
+  double avgY = average(y, point_count);
+  for (int i = 0; i < point_count; i++) {
     double diff = y[i] - avgY;
     varianceSumToAverageY += diff * diff;
   }
 
   // Σ (y_i - f_i)^2
   double varianceSumToApproximationY = 0.0;
-  for (int i = 0; i < count; i++) {
-    double approx = a * x[i] + b;
-    double diff = y[i] - approx;
+  for (int i = 0; i < point_count; i++) {
+    double prediction = parameters[1] * x[i] + parameters[0];
+    double diff = y[i] - prediction;
     varianceSumToApproximationY += diff * diff;
   }
 
   return 1.0 - varianceSumToApproximationY / varianceSumToAverageY;
+}
+
+void show_linear_parameters(double *parameters) {
+  printf("y = \033[36m%lf\033[37mx + \033[36m%lf\033[0m\n", parameters[1],
+         parameters[0]);
 }
 
 int main(int ac, char *av[]) {
@@ -71,14 +74,13 @@ int main(int ac, char *av[]) {
   double *x = extractX(dp);
   double *y = extractY(dp);
 
-  double *coefficients = calc_approximation_coefficient(x, y, dp->num);
-  double a = coefficients[0];
-  double b = coefficients[1];
+  double *parameters = calc_linear_approximation_parameters(x, y, dp->num);
 
-  double r2 = calc_determination_coefficient(x, y, dp->num, a, b);
+  double r2 = calc_determination_coefficient(x, y, dp->num, parameters);
 
-  printf("線形回帰: y = %lf x + %lf\n", a, b);
-  printf("決定係数: R^2 = %lf\n", r2);
+  printf("線形回帰: \t");
+  show_linear_parameters(parameters);
+  printf("決定係数: \t R^2 = %lf\n", r2);
 
   free(x);
   free(y);
